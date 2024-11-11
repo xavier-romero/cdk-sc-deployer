@@ -1,0 +1,225 @@
+networks:
+  default:
+    name: {{.network_name}}
+    
+services:
+  {{.network_name}}-executor:
+    container_name: {{.network_name}}-executor
+    restart: always
+    image: ${DOCKER_EXECUTOR}
+    # ports:
+    #   -  {{.executor_port}}:{{.executor_port}} # Executor
+    volumes:
+      - ./config/executor-config.json:/usr/src/app/config.json:ro
+    command: >
+      zkProver -c /usr/src/app/config.json
+
+  {{.network_name}}-db:
+    container_name: {{.network_name}}-db
+    restart: always
+    image: ${DOCKER_POSTGRES}
+    # ports:
+    #   - 5432:5432
+    volumes:
+      - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./data/postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=master_user
+      - POSTGRES_PASSWORD=master_password
+      - POSTGRES_DB=master
+    command: >
+      postgres -N 500
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U master_user -d master"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  {{.network_name}}-sequencer:
+    container_name: {{.network_name}}-sequencer
+    restart: always
+    image: ${DOCKER_ERIGON}
+    environment:
+      - CDK_ERIGON_SEQUENCER=1
+    volumes:
+      - ./config/erigon-sequencer.yaml:/etc/erigon/config.yaml:ro
+      - ./data/erigon-sequencer-datadir:/datadir
+      - ./config/dynamic-{{.network_name}}-allocs.json:/etc/erigon/dynamic-{{.network_name}}-allocs.json
+      - ./config/dynamic-{{.network_name}}-chainspec.json:/etc/erigon/dynamic-{{.network_name}}-chainspec.json
+      - ./config/dynamic-{{.network_name}}-chainspec.json:/etc/erigon/erigon-{{.network_name}}-chainspec.json
+      - ./config/dynamic-{{.network_name}}-conf.json:/etc/erigon/dynamic-{{.network_name}}-conf.json
+    # ports:
+    #   - {{.sequencer_ds_port}}:{{.sequencer_ds_port}}
+    #   - {{.sequencer_rpc_port}}:{{.sequencer_rpc_port}}
+    command: ["--config", "/etc/erigon/config.yaml"]
+    healthcheck:
+      test: netstat -an | grep {{.sequencer_ds_port}} > /dev/null; if [ 0 != $? ]; then exit 1; fi;
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      {{.network_name}}-executor:
+        condition: service_started
+
+  {{.network_name}}-poolmanager:
+    container_name: {{.network_name}}-poolmanager
+    restart: always
+    image: ${DOCKER_POOLMANAGER}
+    # ports:
+    #   - {{.pm_port}}:{{.pm_port}}
+    volumes:
+      - ./config/pool-manager-config.toml:/app/poolmanager.toml
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-pool-manager run --cfg /app/poolmanager.toml"
+    healthcheck:
+      test: netstat -an | grep {{.pm_port}} > /dev/null; if [ 0 != $? ]; then exit 1; fi;
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      {{.network_name}}-db:
+        condition: service_healthy
+      {{.network_name}}-sequencer:
+        condition: service_healthy
+
+  {{.network_name}}-rpc:
+    container_name: {{.network_name}}-rpc
+    restart: always
+    image: ${DOCKER_ERIGON}
+    volumes:
+      - ./config/erigon-rpc.yaml:/etc/erigon/config.yaml:ro
+      - ./data/erigon-rpc-datadir:/datadir
+      - ./config/dynamic-{{.network_name}}-allocs.json:/etc/erigon/dynamic-{{.network_name}}-allocs.json
+      - ./config/dynamic-{{.network_name}}-chainspec.json:/etc/erigon/dynamic-{{.network_name}}-chainspec.json
+      - ./config/dynamic-{{.network_name}}-chainspec.json:/etc/erigon/erigon-{{.network_name}}-chainspec.json
+      - ./config/dynamic-{{.network_name}}-conf.json:/etc/erigon/dynamic-{{.network_name}}-conf.json
+    ports:
+    #   - {{.sequencer_ds_port}}:{{.sequencer_ds_port}}
+      - {{.sequencer_rpc_port}}:{{.sequencer_rpc_port}}
+    command: ["--config", "/etc/erigon/config.yaml"]
+    healthcheck:
+      test: netstat -an | grep {{.sequencer_ds_port}} > /dev/null; if [ 0 != $? ]; then exit 1; fi;
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      {{.network_name}}-sequencer:
+        condition: service_healthy
+      {{.network_name}}-poolmanager:
+        condition: service_healthy
+
+  {{.network_name}}-bridge:
+    container_name: {{.network_name}}-bridge
+    restart: always
+    image: ${DOCKER_BRIDGE}
+    ports:
+      - {{.bridge_port}}:{{.bridge_port}}
+    volumes:
+      - ./config/bridge-config.toml:/app/config.toml:ro
+      - ./config/keystores/claimtxmanager.keystore:/config/claimtxmanager.keystore:ro
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-bridge run --cfg /app/config.toml"
+    healthcheck:
+      test: netstat -an | grep {{.bridge_port}} > /dev/null; if [ 0 != $? ]; then exit 1; fi;
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      {{.network_name}}-rpc:
+        condition: service_healthy
+      {{.network_name}}-db:
+        condition: service_healthy
+
+  {{.network_name}}-ssender:
+    container_name: {{.network_name}}-ssender
+    restart: always
+    image: ${DOCKER_SEQSENDER}
+    volumes:
+     - ./data/seqsender:/app/data
+     - ./config/keystores/sequencer.keystore:/config/sequencer.keystore:ro
+     - ./config/ssender-config.toml:/app/config.toml:ro
+     - ./config/node-genesis.json:/app/genesis.json:ro
+    command:
+     - "/bin/sh"
+     - "-c"
+     - "/app/zkevm-seqsender run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml"
+    depends_on:
+      {{.network_name}}-rpc:
+        condition: service_healthy
+      {{.network_name}}-db:
+        condition: service_healthy
+
+  {{.network_name}}-aggregator:
+    container_name: {{.network_name}}-aggregator
+    restart: always
+    image: ${DOCKER_AGGREGATOR}
+    # ports:
+    #   - {{.aggregator_port}}:{{.aggregator_port}}
+    volumes:
+     - ./config/aggregator-config.toml:/app/config.toml:ro
+     - ./config/node-genesis.json:/app/genesis.json:ro
+     - ./config/keystores/aggregator.keystore:/config/aggregator.keystore:ro
+    command:
+     - "/bin/sh"
+     - "-c"
+     - "/app/zkevm-aggregator run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml"
+    healthcheck:
+      test: netstat -an | grep {{.aggregator_port}} > /dev/null; if [ 0 != $? ]; then exit 1; fi;
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      {{.network_name}}-db:
+        condition: service_healthy
+      {{.network_name}}-rpc:
+        condition: service_healthy
+     
+  {{.network_name}}-mockprover:
+    container_name: {{.network_name}}-prover
+    restart: always
+    image: ${DOCKER_EXECUTOR}
+    volumes:
+      - ./config/mockprover-config.json:/usr/src/app/config.json:ro
+    command: >
+      zkProver -c /usr/src/app/config.json
+    depends_on:
+      {{.network_name}}-aggregator:
+        condition: service_healthy
+
+  {{.network_name}}-bridgeui:
+    container_name: {{.network_name}}-bridgeui
+    restart: always
+    image: ${DOCKER_BRIDGEUI}
+    ports:
+      - 8000:80
+    environment:
+      - ETHEREUM_RPC_URL={{.l1_rpc_url}}
+      - ETHEREUM_BRIDGE_CONTRACT_ADDRESS={{.bridgeAddress}}
+      - POLYGON_ZK_EVM_RPC_URL="http://localhost:8123"
+      - ZKEVM_NETWORKCONFIG_POLYGONZKEVMGLOBALEXITROOTADDRESS={{.gerAddress}}
+      - POLYGON_ZK_EVM_BRIDGE_CONTRACT_ADDRESS={{.bridgeAddress}}
+      - POLYGON_ZK_EVM_NETWORK_ID=1
+      - BRIDGE_API_URL="http://localhost:8080"
+      - ENABLE_FIAT_EXCHANGE_RATES=false
+      - ETHEREUM_PROOF_OF_EFFICIENCY_CONTRACT_ADDRESS="{{.zkevmAddress}}"
+      - ETHEREUM_FORCE_UPDATE_GLOBAL_EXIT_ROOT=true
+      - ENABLE_DEPOSIT_LIMITS=true
+      - ENABLE_DEPOSIT_WARNING=false
+      - ENABLE_REPORT_FORM=false
+      - ETHEREUM_ROLLUP_MANAGER_ADDRESS="{{.rollupAddress}}"
+      - ETHEREUM_EXPLORER_URL="https://sepolia.etherscan.io"
+      - POLYGON_ZK_EVM_EXPLORER_URL="http://localhost:8000"
+      - ENABLE_OUTDATED_NETWORK_MODAL=false
+    depends_on:
+      {{.network_name}}-bridge:
+        condition: service_healthy

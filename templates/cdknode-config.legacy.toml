@@ -1,0 +1,142 @@
+[Common]
+IsValidiumMode = {{.is_validium}}
+ContractVersions = "{{.contracts_version}}"
+
+[Etherman]
+URL = "{{.l1_rpc_url}}"
+
+[Log]
+Environment = "development"
+Level = "info"
+Outputs = ["stderr"]
+
+[SequenceSender]
+IsValidiumMode = {{.is_validium}} # needed ?
+WaitPeriodSendSequence = "3m"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10m"
+L1BlockTimestampMargin = "120s"
+MaxTxSizeForL1 = 131072
+L2Coinbase =  "{{.sequencer.address}}"
+PrivateKey = {Path = "/config/sequencer.keystore", Password = "{{.sequencer_keystore_password}}"}
+SequencesTxFileName = "/app/data/sequencesender.json"
+GasOffset = 80000
+WaitPeriodPurgeTxFile = "2h"
+MaxPendingTx = 1
+MaxBatchesForL1 = 300
+# BlockFinality="SafeBlock" # TODO: should be finalized but it breaks :)
+RPCURL = "{{.rpc_rpc}}"
+GetBatchWaitInterval = "10s"
+	[SequenceSender.EthTxManager]
+		StoragePath = "/app/data/ethtxmanager.db"
+		FrequencyToMonitorTxs = "10s"
+		WaitTxToBeMined = "2m"
+		SafeStatusL1NumberOfBlocks = 0
+        FinalizedStatusL1NumberOfBlocks = 0
+		WaitReceiptMaxTime = "250ms"
+		WaitReceiptCheckInterval = "8s"
+		PrivateKeys = [
+			{Path = "/config/sequencer.keystore", Password = "{{.sequencer_keystore_password}}"},
+		]
+		ForcedGas = 0
+		GasPriceMarginFactor = 1
+		MaxGasPriceLimit = 0
+		[SequenceSender.EthTxManager.Etherman]
+			URL = "{{.l1_rpc_url}}"
+			L1ChainID = {{.l1_chain_id}}
+			HTTPHeaders = []
+
+[Aggregator]
+FinalProofSanityCheckEnabled = false
+BatchProofSanityCheckEnabled = true
+Host = "0.0.0.0"
+Port = {{.aggregator_port}}
+RetryTime = "5s"
+VerifyProofInterval = "20m"
+ProofStatePollingInterval = "5s"
+TxProfitabilityCheckerType = "acceptall"
+TxProfitabilityMinReward = "1.1"
+IntervalAfterWhichBatchConsolidateAnyway = "0s"
+ChainID = {{.l2_chain_id}}
+ForkId = {{.rollup_fork_id}}
+CleanupLockedProofsInterval = "120m"
+GeneratingProofCleanupThreshold = "10m"
+GasOffset = 30000
+WitnessURL = "{{.rpc_rpc}}"
+SenderAddress = "{{.aggregator.address}}"
+UseL1BatchData = true 
+UseFullWitness = false 
+MaxWitnessRetrievalWorkers = 2
+SyncModeOnlyEnabled = false
+SettlementBackend = "l1"
+
+[Aggregator.SequencerPrivateKey]
+	Path = "/config/sequencer.keystore"
+	Password = "{{.sequencer_keystore_password}}"
+[Aggregator.DB]
+    Name = "{{.aggr_db.name}}"
+    User = "{{.aggr_db.user}}"
+    Password = "{{.aggr_db.password}}"
+    Host = "{{.aggr_db.hostname}}"
+    Port = {{.aggr_db.port}}
+    EnableLog = false
+    MaxConns = 200
+[Aggregator.Log]
+	Environment = "development" # "production" or "development"
+	Level = "info"
+	Outputs = ["stderr"]
+[Aggregator.StreamClient]
+	Server = "{{.rpc_ds}}"
+[Aggregator.EthTxManager]
+	FrequencyToMonitorTxs = "1s"
+	WaitTxToBeMined = "2m"
+	WaitReceiptMaxTime = "250ms"
+	WaitReceiptCheckInterval = "1s"
+    PrivateKeys = [
+        {Path = "/config/aggregator.keystore", Password = "{{.aggregator_keystore_password}}"},
+    ]
+	ForcedGas = 0
+	GasPriceMarginFactor = 1
+	MaxGasPriceLimit = 0
+	StoragePath = ""
+	ReadPendingL1Txs = false
+	SafeStatusL1NumberOfBlocks = 0
+	FinalizedStatusL1NumberOfBlocks = 0
+	[Aggregator.EthTxManager.Etherman]
+		URL = "{{.l1_rpc_url}}"
+		L1ChainID = {{.l1_chain_id}}
+		HTTPHeaders = []
+[Aggregator.Synchronizer]
+	[Aggregator.Synchronizer.Log]
+		Level = "debug"
+	[Aggregator.Synchronizer.SQLDB]
+		DriverName = "sqlite3"
+		DataSource = "file:/app/data/aggregator_sync_db.sqlite"
+	[Aggregator.Synchronizer.Synchronizer]
+		SyncInterval = "10s"
+		SyncChunkSize = 1000
+		GenesisBlockNumber = {{.rollupManagerBlockNumber}}
+		SyncUpToBlock = "latest"
+		BlockFinality = "latest"
+		OverrideStorageCheck = false
+	[Aggregator.Synchronizer.Etherman]
+		[Aggregator.Synchronizer.Etherman.Validium]
+			Enabled = {{.is_validium}}
+
+[L1InfoTreeSync]
+	DBPath = "/app/data/L1InfoTreeSync" # TODO: put a more realisitic path here
+	GlobalExitRootAddr = "{{.gerAddress}}"
+	RollupManagerAddr = "{{.rollupAddress}}"
+	SyncBlockChunkSize = 10
+	BlockFinality = "LatestBlock"
+	URLRPCL1 = "{{.l1_rpc_url}}"
+	WaitForNewBlocksPeriod = "1s"
+	InitialBlock = 0
+ 
+
+[NetworkConfig.L1]
+	L1ChainID = "{{.l1_chain_id}}"
+	PolAddr = "{{.polAddress}}"
+	ZkEVMAddr = "{{.zkevmAddress}}"
+	RollupManagerAddr = "{{.rollupAddress}}"
+	GlobalExitRootManagerAddr = "{{.gerAddress}}"
+

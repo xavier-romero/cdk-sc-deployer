@@ -1,0 +1,51 @@
+# https://github.com/0xPolygon/cdk/blob/d0e76a3d1361158aa24135f25d37ecc4af959755/config/default.go#L56
+
+PathRWData = "{{.zkevm_path_rw_data}}"
+L1URL="{{.l1_rpc_url}}"
+L2URL="{{.rpc_rpc}}"
+# AggLayerURL="{{.agglayer_url}}"
+
+ForkId = {{.rollup_fork_id}}
+IsValidiumMode = {{.is_validium}}
+ContractVersions = "{{.contracts_version}}"
+
+L2Coinbase =  "{{.sequencer.address}}"
+SequencerPrivateKeyPath = "/config/sequencer.keystore"
+SequencerPrivateKeyPassword  = "{{.sequencer_keystore_password}}"
+
+AggregatorPrivateKeyPath = "/config/aggregator.keystore"
+AggregatorPrivateKeyPassword  = "{{.aggregator_keystore_password}}"
+# SenderProofToL1Addr = "{{.zkevm_l2_agglayer_address}}"   
+polygonBridgeAddr = "{{.bridgeAddress}}" 
+
+WitnessURL = "{{.rpc_rpc}}"
+
+# This values can be override directly from genesis.json
+rollupCreationBlockNumber = "{{.rollupManagerBlockNumber}}"
+rollupManagerCreationBlockNumber = "{{.rollupManagerBlockNumber}}"
+genesisBlockNumber = "{{.rollupManagerBlockNumber}}"
+
+[L1Config]
+	chainId = "{{.l1_chain_id}}"
+	polygonZkEVMGlobalExitRootAddress = "{{.gerAddress}}"
+	polygonRollupManagerAddress = "{{.rollupAddress}}"
+	polTokenAddress = "{{.polAddress}}"
+	polygonZkEVMAddress = "{{.zkevmAddress}}"
+	
+[L2Config]
+	GlobalExitRootAddr = "{{.gerAddress}}"
+
+[Aggregator]
+        Port = "{{.aggregator_port}}"
+        RetryTime = "30s"
+        VerifyProofInterval = "10s"
+        GasOffset = 150000
+        SettlementBackend = "l1"
+        [Aggregator.DB]
+            Name = "{{.aggr_db.name}}"
+            User = "{{.aggr_db.user}}"
+            Password = "{{.aggr_db.password}}"
+            Host = "{{.aggr_db.hostname}}"
+            Port = {{.aggr_db.port}}
+            EnableLog = false
+            MaxConns = 200

@@ -1,0 +1,13 @@
+  {{.network_name}}-dac:
+    container_name: {{.network_name}}-dac
+    image: ${DOCKER_DAC}
+    volumes:
+      - ./config/dac-config.toml:/etc/cdk/config.toml:ro
+      - ./config/keystores/dac.keystore:/config/dac.keystore:ro
+    ports:
+      - {{.dac_port}}:{{.dac_port}}
+    entrypoint: ["/app/cdk-data-availability"]
+    command: ["run", "--cfg", "/etc/cdk/config.toml"]
+    depends_on:
+      {{.network_name}}-db:
+        condition: service_healthy
