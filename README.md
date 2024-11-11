@@ -112,6 +112,7 @@ The following files will be copied on the output folder:
     - ```ssender-config.toml```: For zkevm-sequence-sender
     - ```pool-manager-config.toml```: For zkevm-pool-manager
     - ```bridge-config.toml```: For zkevm-bridge-service
+    - ```cdknode-config.toml```: For CDK-Node (replaces Aggregator + SSender)
 
 
 ## Config Templates
