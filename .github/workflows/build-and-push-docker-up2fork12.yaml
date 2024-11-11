@@ -1,12 +1,12 @@
-name: Build and push docker image
+name: Build and push docker image up2fork12
 
 on:
   push:
     branches: [ main ]
 
 env:
-  REGISTRY_IMAGE: xavierromero/cdk-sc-deployer
-  PLATFORMS: linux/amd64
+  REGISTRY_IMAGE: xavierromero/cdk-sc-deployer:up2fork12
+  PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
   build-docker:
@@ -34,7 +34,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
+          file: Dockerfile.up2fork12
           platforms: ${{ env.PLATFORMS }}
           push: true
           tags: |
