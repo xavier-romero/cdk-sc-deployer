@@ -15,6 +15,7 @@ SequencerPrivateKeyPassword  = "{{.sequencer_keystore_password}}"
 
 AggregatorPrivateKeyPath = "/config/aggregator.keystore"
 AggregatorPrivateKeyPassword  = "{{.aggregator_keystore_password}}"
+SenderProofToL1Addr = "{{.aggregator.address}}"   
 # SenderProofToL1Addr = "{{.zkevm_l2_agglayer_address}}"   
 polygonBridgeAddr = "{{.bridgeAddress}}" 
 
